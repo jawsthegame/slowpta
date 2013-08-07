@@ -38,15 +38,20 @@ class BusController extends Quips.Controller
     # setInterval (=> @mapView.drawMap()), 30000
 
   mapped: (map) ->
+    google.maps.event.addListener map, 'click', (event) =>
+      @home = event.latLng
+      @mapView.drawMap(@home)
     @bounds = new google.maps.LatLngBounds
     @_mapBusRoute(map)
     @_getNearestStop().done (stop) =>
       stopMarker = new google.maps.Marker
         position: stop.point
         map: map
-      stopInfo = new google.maps.InfoWindow
+      @stopInfo = new google.maps.InfoWindow
         content: "Nearest Stop<br/><small>#{stop.name}</small>"
-      google.maps.event.addListener stopMarker, 'click', -> stopInfo.open(map, stopMarker)
+      google.maps.event.addListener stopMarker, 'click', =>
+        @_closeInfoWindows()
+        @stopInfo.open(map, stopMarker)
       @bounds.extend(stop.point)
       map.setCenter(stop.point)
 
@@ -64,14 +69,20 @@ class BusController extends Quips.Controller
                   map: map
                   icon: 'images/bus.png'
                 busTemplate = require 'templates/bus/bus_tooltip'
-                busInfo = new google.maps.InfoWindow
+                @busInfo = new google.maps.InfoWindow
                   content: busTemplate
                     direction: @direction
                     route: @route
                     minUntil: minUntil.toFixed(2)
-                google.maps.event.addListener busMarker, 'click', -> busInfo.open(map, busMarker)
+                google.maps.event.addListener busMarker, 'click', =>
+                  @_closeInfoWindows()
+                  @busInfo.open(map, busMarker)
                 @bounds.extend(bus.point)
                 map.fitBounds(@bounds)
+
+  _closeInfoWindows: ->
+    if @stopInfo? then @stopInfo.close()
+    if @busInfo? then @busInfo.close()
 
   _mapBusRoute: (map) ->
     routeLayer = new google.maps.KmlLayer
