@@ -1,0 +1,14 @@
+{
+  "dependencies": [
+    "jqueryify",
+    "json2ify",
+    "momentify",
+    "underscore",
+    "backbone",
+    "quips"
+  ],
+
+  "compilers": {
+    "haml": "hem-compiler-haml"
+  }
+}

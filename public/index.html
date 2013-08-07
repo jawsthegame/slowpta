@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <title>Slowpta - Are we getting there?</title>
+    <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3.5key=AIzaSyBZNlfQqR3WkXJyI9GW2Zp6JtTRwytWimg&sensor=false"></script>
+    <link href='application.css' rel='stylesheet' type='text/css' />
+    <link href='http://fonts.googleapis.com/css?family=Aldrich' rel='stylesheet' type='text/css'>
+    <script type="text/javascript" src="application.js"></script>
+    <script type="text/javascript">
+      var exports = this,
+          jQuery  = require("jqueryify");
+
+      require.define({"underscore": require.modules['underscore/underscore'],
+                      "backbone":   require.modules['backbone/backbone']});
+
+      jQuery(function(){
+        var App = require("index");
+        exports.app = new App();
+      });
+    </script>
+  </head>
+  <body></body>
+</html>

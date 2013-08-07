@@ -1,0 +1,17 @@
+{
+  "name": "slowpta",
+  "version": "0.0.0",
+  "description": "",
+  "dependencies": {
+    "coffee-script":    "1.4.0",
+    "hem":              "0.1.9",
+    "jqueryify":        "1.9.1",
+    "json2ify":         "0.0.1",
+    "momentify":        "2.1.0",
+    "underscore":       "1.4.4",
+    "backbone":         "0.9.10",
+    "haml-coffee":      "1.4.1",
+    "hem-haml-coffee":  "0.0.3",
+    "quips":            "0.2.7"
+  }
+}
