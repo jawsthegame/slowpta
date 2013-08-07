@@ -44,13 +44,12 @@ class BusController extends Quips.Controller
     @selectorView.hide()
     @mapView.show()
     @direction = Direction[direction.toUpperCase()]
-    @mapView.drawMap(@home)
-    # setInterval (=> @mapView.drawMap()), 30000
+    @mapView.drawMap(@home, @route, @direction)
 
   mapped: (map) ->
     google.maps.event.addListener map, 'click', (event) =>
       @home = event.latLng
-      @mapView.drawMap(@home)
+      @mapView.drawMap(@home, @route, @direction)
     @bounds = new google.maps.LatLngBounds
     @_mapBusRoute(map)
     @_getNearestStop().done (stop) =>

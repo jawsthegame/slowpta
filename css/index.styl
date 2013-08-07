@@ -4,21 +4,21 @@ body
 
 .title
   position    relative
-  top         24px
+  top         20px
   text-align  center
-  font-size   72px
+  font-size   64px
   color       #E88484
 
 .subtitle
   position    relative
-  top         20px
+  top         16px
   text-align  center
-  font-size   32px
+  font-size   28px
   color       #82ABED
 
 #main-content
   position      absolute
-  top           180px
+  top           140px
   left          50%
   margin-left   -400px
   width         800px
@@ -37,11 +37,15 @@ a
   display none
 
 h2
+  font-size   18px
   color       #DDD
 
-#map
-  h2
+  &#back-link
     text-align  right
+    width       100%
+
+  &#route-info
+    text-align  center
     width       100%
 
 table#routes
@@ -67,23 +71,23 @@ table#routes
 @media only screen and (min-device-width: 320px) and (max-device-width: 568px)
 
   .title
-    font-size 28px
-    top       5px
+    font-size 24px
+    top       3px
 
   .subtitle
-    font-size 14px
-    top       10px
+    font-size 12px
+    top       5px
 
   #main-content
     width       300px
     margin-left -150px
-    top         70px
+    top         50px
 
   #map-canvas
     height 300px
 
   h2
-    font-size 14px
+    font-size 12px
 
   table#routes
-    font-size 14px
+    font-size 12px
