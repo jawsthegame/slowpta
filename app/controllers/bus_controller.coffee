@@ -59,30 +59,34 @@ class BusController extends Quips.Controller
         if locations
           points = (l.point for l in locations)
           @_calculateDistances(stop.point, points, google.maps.TravelMode.DRIVING).done (buses) =>
+            @busInfos = []
             for bus, i in buses
               offset = locations[i].offset
               min = bus.travelSec / 60
               minUntil = min - parseInt(offset)
               if minUntil
-                busMarker = new google.maps.Marker
-                  position: bus.point
-                  map: map
-                  icon: 'images/bus.png'
-                busTemplate = require 'templates/bus/bus_tooltip'
-                @busInfo = new google.maps.InfoWindow
-                  content: busTemplate
-                    direction: @direction
-                    route: @route
-                    minUntil: minUntil.toFixed(2)
-                google.maps.event.addListener busMarker, 'click', =>
-                  @_closeInfoWindows()
-                  @busInfo.open(map, busMarker)
-                @bounds.extend(bus.point)
-                map.fitBounds(@bounds)
+                do (minUntil) =>
+                  busMarker = new google.maps.Marker
+                    position: bus.point
+                    map: map
+                    icon: 'images/bus.png'
+                  busTemplate = require 'templates/bus/bus_tooltip'
+                  busInfo = new google.maps.InfoWindow
+                    content: busTemplate
+                      direction: @direction
+                      route: @route
+                      minUntil: minUntil.toFixed(2)
+                  @busInfos.push busInfo
+                  do (busMarker) =>
+                    google.maps.event.addListener busMarker, 'click', =>
+                      @_closeInfoWindows()
+                      busInfo.open(map, busMarker)
+                  @bounds.extend(bus.point)
+            map.fitBounds(@bounds)
 
   _closeInfoWindows: ->
     if @stopInfo? then @stopInfo.close()
-    if @busInfo? then @busInfo.close()
+    busInfo.close() for busInfo in @busInfos
 
   _mapBusRoute: (map) ->
     routeLayer = new google.maps.KmlLayer
@@ -97,7 +101,7 @@ class BusController extends Quips.Controller
       stops = []
       for stop in data
         stopPoint = new google.maps.LatLng(stop.lat, stop.lng)
-        if @_checkBounds(@home, stopPoint, 0.5)
+        if @_checkDistanceBounds(@home, stopPoint, 0.5)
           stops.push stopPoint
       @_calculateDistances(@home, stops, google.maps.TravelMode.WALKING).done (stops) ->
         sortedStops = _.sortBy stops, (b) -> b.travelSec
@@ -111,7 +115,7 @@ class BusController extends Quips.Controller
       locations = []
       for row in data['bus']
         to = new google.maps.LatLng(row.lat, row.lng)
-        if row['Direction'] is @direction and @_checkBounds(from, to)
+        if row['Direction'] is @direction and @_checkDirectionBounds(from, to)
           locations.push
             point: to
             offset: row['Offset']
@@ -119,19 +123,20 @@ class BusController extends Quips.Controller
 
     deferred.promise()
 
-  _checkBounds: (from, to, maxDist) ->
-    inBounds = (@direction is Direction.NORTH and from.lat() > to.lat()) \
+  _checkDirectionBounds: (from, to) ->
+    (@direction is Direction.NORTH and from.lat() > to.lat()) \
       or (@direction is Direction.SOUTH and from.lat() < to.lat()) \
       or (@direction is Direction.EAST and from.lng() > to.lng()) \
       or (@direction is Direction.WEST and from.lng() < to.lng())
 
+  _checkDistanceBounds: (from, to, maxDist) ->
     if maxDist
       deg = (1 / 69.047) * maxDist
       latDiff = Math.abs(from.lat() - to.lat())
       lngDiff = Math.abs(from.lng() - to.lng())
-      return latDiff < deg and lngDiff < deg and inBounds
+      return latDiff < deg and lngDiff < deg
 
-    inBounds
+    true
 
   _calculateDistances: (point, locations, mode) ->
     deferred = Deferred()
@@ -157,6 +162,7 @@ class BusController extends Quips.Controller
 
           deferred.resolve(buses)
         else
+          console.log status
           deferred.reject()
 
     deferred.promise()
