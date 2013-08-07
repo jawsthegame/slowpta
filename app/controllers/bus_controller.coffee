@@ -76,6 +76,7 @@ class BusController extends Quips.Controller
                 offset = locations[i].offset
                 min = bus.travelSec / 60
                 minUntil = min - parseInt(offset)
+                minUntil = 0 if minUntil < 0
                 if minUntil
                   do (minUntil) =>
                     busMarker = new google.maps.Marker

@@ -16,7 +16,7 @@ class Route
     @enumOut      = _.invert(Direction)[@out]
 
   _friendly: (direction) ->
-    direction.replace 'B', '-B'
+    direction.replace 'Bound', ''
 
 
 routes = [
