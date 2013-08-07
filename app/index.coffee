@@ -2,7 +2,7 @@ Quips     = require 'quips'
 $         = require 'jqueryify'
 Backbone  = require 'backbone'
 
-BusController = require 'controllers/bus_controller'
+BusController   = require 'controllers/bus_controller'
 
 
 class App
@@ -17,9 +17,6 @@ class App
     new BusController(el: $content).activate()
 
     Backbone.history.start()
-
-    unless window.location.hash
-      Backbone.history.navigate '#/57/south'
 
 
 module.exports = App

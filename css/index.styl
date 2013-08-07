@@ -1,6 +1,7 @@
 body
   background-color  #333
   font-family       'Aldrich', sans-serif
+  color             #DDD
 
 .title
   position    relative
@@ -28,6 +29,37 @@ body
   padding:  0
   width:    100%
   height:   680px
+
+a
+  text-decoration none
+  color           #5BD1E3
+
+.hidden
+  display none
+
+#map
+  h2
+    text-align  right
+    width       100%
+
+table#routes
+
+  font-size       16px
+  border-collapse collapse
+  width           100%
+
+  td
+    width         140px
+    border-bottom 1px solid #555
+    padding       4px 0
+
+    &:first-child
+      padding-left  10px
+
+  tr
+    &:first-child
+      td
+        border-top    1px solid #555
 
 @media only screen and (min-device-width: 320px) and (max-device-width: 568px)
 

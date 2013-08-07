@@ -15,5 +15,11 @@ class BusMapView extends Quips.View
 
     @trigger 'mapped', map
 
+  show: ->
+    @$el.parent().removeClass 'hidden'
+
+  hide: ->
+    @$el.parent().addClass 'hidden'
+
 
 module.exports = BusMapView

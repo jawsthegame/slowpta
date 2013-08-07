@@ -1,0 +1,10 @@
+%h2 Select a Route
+%table#routes
+  %tbody
+    -for r in @routes
+      %tr
+        %td= r.num
+        %td=
+          %a{href: "#/#{r.num}/#{r.enumIn}"}= r.friendlyIn
+        %td=
+          %a{href: "#/#{r.num}/#{r.enumOut}"}= r.friendlyOut

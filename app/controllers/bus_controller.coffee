@@ -5,29 +5,29 @@ getJSON     = jQuery.getJSON
 Deferred    = jQuery.Deferred
 TravelMode  = google.maps.TravelMode
 
-BusMapView = require 'views/bus/map'
+BusMapView      = require 'views/bus/map'
+BusSelectorView = require 'views/bus/selector'
+Direction       = require('lib/routes').Direction
 
-
-Direction =
- NORTH: 'NorthBound'
- SOUTH: 'SouthBound'
- EAST:  'EastBound'
- WEST:  'WestBound'
 
 class BusController extends Quips.Controller
   layout: require 'templates/bus/layout'
 
   routes:
+    '':                 'showSelector'
     ':route/:direction': 'renderMap'
 
   views:
-    '#map': 'mapView'
+    '#map':       'mapView'
+    '#selector':  'selectorView'
 
   events:
     'mapView.mapped': 'mapped'
 
   constructor: ->
     @mapView = new BusMapView().render()
+    @selectorView = new BusSelectorView().render()
+
     @home = new google.maps.LatLng(39.952681,-75.163743)
     navigator.geolocation.getCurrentPosition (position) =>
       @home = new google.maps.LatLng(
@@ -35,7 +35,14 @@ class BusController extends Quips.Controller
         position.coords.longitude)
     super
 
+  showSelector: ->
+    @mapView.hide()
+    @selectorView.show()
+
   renderMap: (@route, direction) ->
+    @activate()
+    @selectorView.hide()
+    @mapView.show()
     @direction = Direction[direction.toUpperCase()]
     @mapView.drawMap(@home)
     # setInterval (=> @mapView.drawMap()), 30000
