@@ -1,8 +1,9 @@
-Quips     = require 'quips'
-_         = require 'underscore'
-jQuery    = require 'jqueryify'
-getJSON   = jQuery.getJSON
-Deferred  = jQuery.Deferred
+Quips       = require 'quips'
+_           = require 'underscore'
+jQuery      = require 'jqueryify'
+getJSON     = jQuery.getJSON
+Deferred    = jQuery.Deferred
+TravelMode  = google.maps.TravelMode
 
 BusMapView = require 'views/bus/map'
 
@@ -29,7 +30,9 @@ class BusController extends Quips.Controller
     @mapView = new BusMapView().render()
     @home = new google.maps.LatLng(39.952681,-75.163743)
     navigator.geolocation.getCurrentPosition (position) =>
-      @home = new google.maps.LatLng(position.coords.latitude, position.coords.longitude)
+      @home = new google.maps.LatLng(
+        position.coords.latitude,
+        position.coords.longitude)
     super
 
   renderMap: (@route, direction) ->
@@ -58,31 +61,33 @@ class BusController extends Quips.Controller
       @_getBusLocations(stop.point).done (locations) =>
         if locations
           points = (l.point for l in locations)
-          @_calculateDistances(stop.point, points, google.maps.TravelMode.DRIVING).done (buses) =>
-            @busInfos = []
-            for bus, i in buses
-              offset = locations[i].offset
-              min = bus.travelSec / 60
-              minUntil = min - parseInt(offset)
-              if minUntil
-                do (minUntil) =>
-                  busMarker = new google.maps.Marker
-                    position: bus.point
-                    map: map
-                    icon: 'images/bus.png'
-                  busTemplate = require 'templates/bus/bus_tooltip'
-                  busInfo = new google.maps.InfoWindow
-                    content: busTemplate
-                      direction: @direction
-                      route: @route
-                      minUntil: minUntil.toFixed(2)
-                  @busInfos.push busInfo
-                  do (busMarker) =>
-                    google.maps.event.addListener busMarker, 'click', =>
-                      @_closeInfoWindows()
-                      busInfo.open(map, busMarker)
-                  @bounds.extend(bus.point)
-            map.fitBounds(@bounds)
+          @_calculateDistances(stop.point, points, TravelMode.DRIVING)
+            .done (buses) =>
+              @busInfos = []
+              sortedBuses = _.sortBy buses, (b) -> b.travelSec
+              for bus, i in sortedBuses
+                offset = locations[i].offset
+                min = bus.travelSec / 60
+                minUntil = min - parseInt(offset)
+                if minUntil
+                  do (minUntil) =>
+                    busMarker = new google.maps.Marker
+                      position: bus.point
+                      map: map
+                      icon: 'images/bus.png'
+                    busTemplate = require 'templates/bus/bus_tooltip'
+                    busInfo = new google.maps.InfoWindow
+                      content: busTemplate
+                        direction: @direction
+                        route: @route
+                        minUntil: minUntil.toFixed(2)
+                    @busInfos.push busInfo
+                    do (busMarker) =>
+                      google.maps.event.addListener busMarker, 'click', =>
+                        @_closeInfoWindows()
+                        busInfo.open(map, busMarker)
+                    @bounds.extend(bus.point) if i is 0
+              map.fitBounds(@bounds)
 
   _closeInfoWindows: ->
     if @stopInfo? then @stopInfo.close()
@@ -97,13 +102,14 @@ class BusController extends Quips.Controller
 
   _getNearestStop: ->
     deferred = Deferred()
-    getJSON "http://www3.septa.org/hackathon/Stops/?req1=#{@route}&callback=?", (data) =>
+    url = "http://www3.septa.org/hackathon/Stops/?req1=#{@route}&callback=?"
+    getJSON url, (data) =>
       stops = []
       for stop in data
         stopPoint = new google.maps.LatLng(stop.lat, stop.lng)
         if @_checkDistanceBounds(@home, stopPoint, 0.5)
           stops.push stopPoint
-      @_calculateDistances(@home, stops, google.maps.TravelMode.WALKING).done (stops) ->
+      @_calculateDistances(@home, stops, TravelMode.WALKING).done (stops) ->
         sortedStops = _.sortBy stops, (b) -> b.travelSec
         deferred.resolve(sortedStops[0])
 
@@ -111,7 +117,9 @@ class BusController extends Quips.Controller
 
   _getBusLocations: (from) ->
     deferred = Deferred()
-    getJSON "http://www3.septa.org/hackathon/TransitView/?route=#{@route}&callback=?", (data) =>
+    url =
+      "http://www3.septa.org/hackathon/TransitView/?route=#{@route}&callback=?"
+    getJSON url, (data) =>
       locations = []
       for row in data['bus']
         to = new google.maps.LatLng(row.lat, row.lng)
