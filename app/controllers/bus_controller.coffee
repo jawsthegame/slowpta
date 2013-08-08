@@ -66,15 +66,14 @@ class BusController extends Quips.Controller
 
       @_getBusLocations(stop.point).done (locations) =>
         if locations
-          points = (l.point for l in locations)
-          @_calculateDistances(stop.point, points, TravelMode.DRIVING)
+          @_calculateDistances(stop.point, locations, TravelMode.DRIVING)
             .done (buses) =>
               @busInfos = []
               sortedBuses = _.sortBy buses, (b) -> b.travelSec
               for bus, i in sortedBuses
                 offset = locations[i].offset
                 min = bus.travelSec / 60
-                minUntil = min - parseInt(offset)
+                minUntil = min - parseInt(offset) - 1 # be careful, it's SEPTA
                 minUntil = 0 if minUntil < 0
                 if minUntil
                   do (minUntil) =>
@@ -115,7 +114,9 @@ class BusController extends Quips.Controller
       for stop in data
         stopPoint = new google.maps.LatLng(stop.lat, stop.lng)
         if @_checkDistanceBounds(@home, stopPoint, 0.5)
-          stops.push stopPoint
+          stops.push
+            point:  stopPoint
+            name:   stop.stopname
       @_calculateDistances(@home, stops, TravelMode.WALKING).done (stops) ->
         sortedStops = _.sortBy stops, (b) -> b.travelSec
         deferred.resolve(sortedStops[0])
@@ -150,7 +151,6 @@ class BusController extends Quips.Controller
       latDiff = Math.abs(from.lat() - to.lat())
       lngDiff = Math.abs(from.lng() - to.lng())
       return latDiff < deg and lngDiff < deg
-
     true
 
   _calculateDistances: (point, locations, mode) ->
@@ -161,21 +161,22 @@ class BusController extends Quips.Controller
     service = new google.maps.DistanceMatrixService
     service.getDistanceMatrix
       origins: [point]
-      destinations: locations
+      destinations: (l.point for l in locations)
       travelMode: mode
       unitSystem: google.maps.UnitSystem.IMPERIAL
-      avoidHighways: false
-      avoidTolls: false
+      avoidHighways: true
+      avoidTolls: true
       , (response, status) ->
         if status is google.maps.DistanceMatrixStatus.OK
-          buses = []
+          destinations = []
           for e, i in response.rows[0].elements
-            buses.push
-              point: locations[i]
+            destinations.push
+              point: locations[i].point
               travelSec: e.duration.value
-              name: response.destinationAddresses[i]
+              name: locations[i].name \
+                or response.destinationAddresses[i]
 
-          deferred.resolve(buses)
+          deferred.resolve(destinations)
         else
           console.log status
           deferred.reject()
