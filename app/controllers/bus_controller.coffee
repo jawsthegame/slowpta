@@ -33,11 +33,6 @@ class BusController extends Quips.Controller
     @mapView = new BusMapView().render()
     @selectorView = new BusSelectorView().render()
 
-    @home = new google.maps.LatLng(39.952681,-75.163743)
-    navigator.geolocation.getCurrentPosition (position) =>
-      @home = new google.maps.LatLng(
-        position.coords.latitude,
-        position.coords.longitude)
     super
 
   showSelector: ->
@@ -49,6 +44,13 @@ class BusController extends Quips.Controller
     @selectorView.hide()
     @mapView.show()
     @direction = Direction[direction.toUpperCase()]
+
+    @home = new google.maps.LatLng(39.952681,-75.163743)
+    navigator.geolocation.getCurrentPosition (position) =>
+      @home = new google.maps.LatLng(
+        position.coords.latitude,
+        position.coords.longitude)
+
     @mapView.drawMap(@home, @route, @direction)
 
   mapped: (map) ->
