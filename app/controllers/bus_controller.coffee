@@ -82,10 +82,20 @@ class BusController extends Quips.Controller
                 minUntil = 0 if minUntil < 0
                 if minUntil
                   do (minUntil) =>
+                    minToStop = stop.travelSec / 60
+                    icon = if minUntil < minToStop + 1
+                      'bus_red'
+                    else if minUntil < minToStop + 3
+                      'bus_yellow'
+                    else if minUntil < minToStop + 10
+                      'bus_green'
+                    else
+                      'bus'
+
                     busMarker = new google.maps.Marker
                       position: bus.point
                       map: map
-                      icon: 'images/bus.png'
+                      icon: "images/#{icon}.png"
                     busTemplate = require 'templates/bus/bus_tooltip'
                     busInfo = new google.maps.InfoWindow
                       content: busTemplate
