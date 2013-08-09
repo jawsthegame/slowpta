@@ -1,12 +1,18 @@
 _ = require 'underscore'
 
 
-Direction =
- NORTH: 'NorthBound'
- SOUTH: 'SouthBound'
- EAST:  'EastBound'
- WEST:  'WestBound'
+class Direction
+  @NORTH: 'NorthBound'
+  @SOUTH: 'SouthBound'
+  @EAST:  'EastBound'
+  @WEST:  'WestBound'
 
+  @get: (direction) ->
+    switch direction
+      when Direction.NORTH  then '1'
+      when Direction.SOUTH  then '0'
+      when Direction.EAST   then '0'
+      when Direction.WEST   then '1'
 
 class Route
   constructor: (@num, @in, @out) ->

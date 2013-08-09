@@ -1,9 +1,11 @@
 Quips       = require 'quips'
 _           = require 'underscore'
 jQuery      = require 'jqueryify'
-getJSON     = jQuery.getJSON
-Deferred    = jQuery.Deferred
+
 TravelMode  = google.maps.TravelMode
+Deferred    = jQuery.Deferred
+get         = jQuery.get
+getJSON     = jQuery.getJSON
 
 BusMapView      = require 'views/bus/map'
 BusSelectorView = require 'views/bus/selector'
@@ -25,6 +27,9 @@ class BusController extends Quips.Controller
     'mapView.mapped': 'mapped'
 
   constructor: ->
+    @urlRoot = 'http://www3.septa.org/hackathon/'
+    @busInfos = []
+
     @mapView = new BusMapView().render()
     @selectorView = new BusSelectorView().render()
 
@@ -56,8 +61,9 @@ class BusController extends Quips.Controller
       stopMarker = new google.maps.Marker
         position: stop.point
         map: map
+      stopTemplate = require 'templates/bus/stop_tooltip'
       @stopInfo = new google.maps.InfoWindow
-        content: "Nearest Stop<br/><small>#{stop.name}</small>"
+        content: stopTemplate(stop)
       google.maps.event.addListener stopMarker, 'click', =>
         @_closeInfoWindows()
         @stopInfo.open(map, stopMarker)
@@ -65,10 +71,9 @@ class BusController extends Quips.Controller
       map.setCenter(stop.point)
 
       @_getBusLocations(stop.point).done (locations) =>
-        if locations
+        if locations.length
           @_calculateDistances(stop.point, locations, TravelMode.DRIVING)
             .done (buses) =>
-              @busInfos = []
               sortedBuses = _.sortBy buses, (b) -> b.travelSec
               for bus, i in sortedBuses
                 offset = locations[i].offset
@@ -108,25 +113,65 @@ class BusController extends Quips.Controller
 
   _getNearestStop: ->
     deferred = Deferred()
-    url = "http://www3.septa.org/hackathon/Stops/?req1=#{@route}&callback=?"
+    @mapView.block local: true, message: 'Finding nearest bus stop...'
+    url = "#{@urlRoot}Stops/?req1=#{@route}&callback=?"
     getJSON url, (data) =>
-      stops = []
-      for stop in data
+      @_processStops(data)
+        .done (stops) =>
+          @_calculateDistances(@home, stops, TravelMode.WALKING).done (stops) ->
+            sortedStops = _.sortBy stops, (b) -> b.travelSec
+            deferred.resolve(sortedStops[0])
+        .fail ->
+          deferred.reject()
+        .always =>
+          @mapView.unblock()
+
+    deferred.promise()
+
+  _processStops: (stopData) ->
+    deferred = Deferred()
+    @_doDirectionChecks(stopData, 1, 8, deferred)
+    deferred.promise()
+
+  _doDirectionChecks: (stopData, pass, passes, deferred) ->
+    # Recursively call this to do a pass in each 1/4 mile circle around
+    # the current location to find the closest stop. Max 2 miles.
+    directionChecks = []
+
+    if pass <= passes
+      for stop in stopData
         stopPoint = new google.maps.LatLng(stop.lat, stop.lng)
-        if @_checkDistanceBounds(@home, stopPoint, 0.5)
-          stops.push
-            point:  stopPoint
-            name:   stop.stopname
-      @_calculateDistances(@home, stops, TravelMode.WALKING).done (stops) ->
-        sortedStops = _.sortBy stops, (b) -> b.travelSec
-        deferred.resolve(sortedStops[0])
+        if @_checkDistanceBounds(@home, stopPoint, 0.25 * pass)
+          directionChecks.push @_augmentStop(stop)
+
+      jQuery.when.apply(jQuery, directionChecks).done (results...) =>
+        matches = (r for r in results when r.direction is Direction.get(@direction))
+        if matches.length
+          deferred.resolve(matches)
+        else
+          @_doDirectionChecks(stopData, pass+1, passes, deferred)
+    else
+      deferred.reject()
+
+    deferred
+
+  _augmentStop: (stop) ->
+    deferred = Deferred()
+    scheduleUrl = "#{@urlRoot}BusSchedules/" \
+      + "?req1=#{stop.stopid}&req2=#{@route}&req6=1&callback=?"
+    getJSON scheduleUrl, (schedule) =>
+      stopPoint = new google.maps.LatLng(stop.lat, stop.lng)
+      deferred.resolve
+        point:      stopPoint
+        name:       jQuery('<div>').html(stop.stopname).text()
+        direction:  schedule[@route][0]['Direction']
+        next:       schedule[@route][0]['date']
 
     deferred.promise()
 
   _getBusLocations: (from) ->
     deferred = Deferred()
-    url =
-      "http://www3.septa.org/hackathon/TransitView/?route=#{@route}&callback=?"
+    url = "#{@urlRoot}TransitView/?route=#{@route}&callback=?"
     getJSON url, (data) =>
       locations = []
       for row in data['bus']
@@ -147,10 +192,9 @@ class BusController extends Quips.Controller
 
   _checkDistanceBounds: (from, to, maxDist) ->
     if maxDist
-      deg = (1 / 69.047) * maxDist
-      latDiff = Math.abs(from.lat() - to.lat())
-      lngDiff = Math.abs(from.lng() - to.lng())
-      return latDiff < deg and lngDiff < deg
+      miles = @_great_circle from, to
+      return miles < maxDist
+
     true
 
   _calculateDistances: (point, locations, mode) ->
@@ -173,6 +217,7 @@ class BusController extends Quips.Controller
             destinations.push
               point: locations[i].point
               travelSec: e.duration.value
+              next: locations[i].next # only exists for stops
               name: locations[i].name \
                 or response.destinationAddresses[i]
 
@@ -182,6 +227,21 @@ class BusController extends Quips.Controller
           deferred.reject()
 
     deferred.promise()
+
+  _great_circle: (from, to) ->
+    degrees_to_radians = Math.PI / 180
+    A_lat = from.lat() * degrees_to_radians
+    B_lat = to.lat() * degrees_to_radians
+    d_lon = Math.abs(to.lng() - from.lng()) * degrees_to_radians
+
+    Math.atan2(
+      Math.sqrt(
+        Math.pow(Math.cos(B_lat) * Math.sin(d_lon), 2.0) + \
+        Math.pow(Math.cos(A_lat) * Math.sin(B_lat) - Math.sin(A_lat) \
+          * Math.cos(B_lat) * Math.cos(d_lon), 2.0)),
+      Math.sin(A_lat) * Math.sin(B_lat) + Math.cos(A_lat) * Math.cos(B_lat) \
+        * Math.cos(d_lon)
+    ) * 3959.9
 
 
 module.exports = BusController
