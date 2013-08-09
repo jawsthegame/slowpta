@@ -91,7 +91,6 @@ class BusController extends Quips.Controller
                       'bus_green'
                     else
                       'bus'
-
                     busMarker = new google.maps.Marker
                       position: bus.point
                       map: map
@@ -102,6 +101,7 @@ class BusController extends Quips.Controller
                         direction: @direction
                         route: @route
                         minUntil: minUntil.toFixed(2)
+                        minToStop: minToStop.toFixed(2)
                     @busInfos.push busInfo
                     do (busMarker) =>
                       google.maps.event.addListener busMarker, 'click', =>
@@ -125,16 +125,20 @@ class BusController extends Quips.Controller
     deferred = Deferred()
     @mapView.block local: true, message: 'Finding nearest bus stop...'
     url = "#{@urlRoot}Stops/?req1=#{@route}&callback=?"
-    getJSON url, (data) =>
-      @_processStops(data)
-        .done (stops) =>
-          @_calculateDistances(@home, stops, TravelMode.WALKING).done (stops) ->
-            sortedStops = _.sortBy stops, (b) -> b.travelSec
-            deferred.resolve(sortedStops[0])
-        .fail ->
-          deferred.reject()
-        .always =>
-          @mapView.unblock()
+    getJSON(url)
+      .done (data) =>
+        @_processStops(data)
+          .done (stops) =>
+            @_calculateDistances(@home, stops, TravelMode.WALKING).done (stops) ->
+              sortedStops = _.sortBy stops, (b) -> b.travelSec
+              deferred.resolve(sortedStops[0])
+          .fail ->
+            deferred.reject()
+          .always =>
+            @mapView.unblock()
+      .fail ->
+        @mapView.unblock()
+        deferred.reject()
 
     deferred.promise()
 
