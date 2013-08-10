@@ -84,7 +84,11 @@ table#routes
       td
         border-top    1px solid #555
 
-@media only screen and (min-device-width: 320px) and (max-device-width: 568px)
+// iPhone 4S and older
+@media only screen \
+    and (min-device-width: 320px) \
+    and (max-device-width: 480px) \
+    and (min-device-height: 480px)
 
   .title
     font-size 24px
@@ -112,3 +116,12 @@ table#routes
   table#routes
     font-size 12px
     top      36px
+
+// iPhone 5
+@media only screen \
+    and (min-device-width: 320px) \
+    and (max-device-width: 568px) \
+    and (min-device-height: 568px)
+
+  #map-canvas
+    height 334px

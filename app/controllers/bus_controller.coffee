@@ -61,9 +61,10 @@ class BusController extends Quips.Controller
     @mapView.drawMap(@home, @route, @direction)
 
   mapped: (@map) ->
-    google.maps.event.addListener @map, 'click', (event) =>
-      @home = event.latLng
-      @mapView.drawMap(@home, @route, @direction)
+    if not /iPhone|iPod|iPad|Android|BlackBerry/.test navigator.userAgent
+      google.maps.event.addListener @map, 'click', (event) =>
+        @home = event.latLng
+        @mapView.drawMap(@home, @route, @direction)
     @bounds = new google.maps.LatLngBounds
     @_mapBusRoute(@map)
     @_addStopAndBuses(@map)
