@@ -16,6 +16,11 @@ class BusMapView extends Quips.View
       center: center
       zoom: 14
       mapTypeId: google.maps.MapTypeId.ROADMAP
+      panControl: false
+      streetViewControl: false
+      overviewMapControl: false
+      zoomControl: false
+      mapTypeControl: false
 
     @trigger 'mapped', map
     @$routeInfo.text("Route #{route} #{direction}")
