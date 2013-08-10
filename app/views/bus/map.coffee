@@ -8,6 +8,9 @@ class BusMapView extends Quips.View
     '#map-canvas': '$canvas'
     '#route-info': '$routeInfo'
 
+  events:
+    'click #refresh': 'refresh'
+
   drawMap: (center, route, direction) ->
     map = new google.maps.Map @$canvas[0],
       center: center
@@ -22,6 +25,9 @@ class BusMapView extends Quips.View
 
   hide: ->
     @$el.parent().addClass 'hidden'
+
+  refresh: ->
+    @trigger 'refresh'
 
 
 module.exports = BusMapView

@@ -12,6 +12,10 @@ BusSelectorView = require 'views/bus/selector'
 Direction       = require('lib/routes').Direction
 
 
+blockCss =
+  padding: '30px'
+  margin: '0 0 0 -30px'
+
 class BusController extends Quips.Controller
   layout: require 'templates/bus/layout'
 
@@ -24,11 +28,13 @@ class BusController extends Quips.Controller
     '#selector':  'selectorView'
 
   events:
-    'mapView.mapped': 'mapped'
+    'mapView.mapped':   'mapped'
+    'mapView.refresh':  'refresh'
 
   constructor: ->
     @urlRoot = 'http://www3.septa.org/hackathon/'
     @busInfos = []
+    @busMarkers = []
 
     @mapView = new BusMapView().render()
     @selectorView = new BusSelectorView().render()
@@ -53,64 +59,94 @@ class BusController extends Quips.Controller
 
     @mapView.drawMap(@home, @route, @direction)
 
-  mapped: (map) ->
-    google.maps.event.addListener map, 'click', (event) =>
+  mapped: (@map) ->
+    google.maps.event.addListener @map, 'click', (event) =>
       @home = event.latLng
       @mapView.drawMap(@home, @route, @direction)
     @bounds = new google.maps.LatLngBounds
-    @_mapBusRoute(map)
-    @_getNearestStop().done (stop) =>
+    @_mapBusRoute(@map)
+    @_addStopAndBuses(@map)
+
+  refresh: ->
+    if @stop? and @map?
+      @mapView.block message: 'Refreshing buses...', css: blockCss
+      @_updateBuses(@map, @stop).always => @mapView.unblock()
+    else
+      @mapView.drawMap(@home, @route, @direction)
+
+  _addStopAndBuses: (map) ->
+    @_findNearestStop().done (@stop) =>
       stopMarker = new google.maps.Marker
-        position: stop.point
+        position: @stop.point
         map: map
       stopTemplate = require 'templates/bus/stop_tooltip'
       @stopInfo = new google.maps.InfoWindow
-        content: stopTemplate(stop)
+        content: stopTemplate(@stop)
       google.maps.event.addListener stopMarker, 'click', =>
         @_closeInfoWindows()
         @stopInfo.open(map, stopMarker)
-      @bounds.extend(stop.point)
-      map.setCenter(stop.point)
+      @bounds.extend(@stop.point)
+      map.setCenter(@stop.point)
+      @_updateBuses(map, @stop)
 
-      @_getBusLocations(stop.point).done (locations) =>
+  _updateBuses: (map, stop) ->
+    deferred = Deferred()
+    @_getBusLocations(stop.point)
+      .done (locations) =>
         if locations.length
           @_calculateDistances(stop.point, locations, TravelMode.DRIVING)
             .done (buses) =>
-              sortedBuses = _.sortBy buses, (b) -> b.travelSec
-              for bus, i in sortedBuses
-                offset = locations[i].offset
-                min = bus.travelSec / 60
-                minUntil = min - parseInt(offset) - 1 # be careful, it's SEPTA
-                minUntil = 0 if minUntil < 0
-                if minUntil
-                  do (minUntil) =>
-                    minToStop = stop.travelSec / 60
-                    icon = if minUntil < minToStop + 1
-                      'bus_red'
-                    else if minUntil < minToStop + 3
-                      'bus_yellow'
-                    else if minUntil < minToStop + 10
-                      'bus_green'
-                    else
-                      'bus'
-                    busMarker = new google.maps.Marker
-                      position: bus.point
-                      map: map
-                      icon: "images/#{icon}.png"
-                    busTemplate = require 'templates/bus/bus_tooltip'
-                    busInfo = new google.maps.InfoWindow
-                      content: busTemplate
-                        direction: @direction
-                        route: @route
-                        minUntil: minUntil.toFixed(2)
-                        minToStop: minToStop.toFixed(2)
-                    @busInfos.push busInfo
-                    do (busMarker) =>
-                      google.maps.event.addListener busMarker, 'click', =>
-                        @_closeInfoWindows()
-                        busInfo.open(map, busMarker)
-                    @bounds.extend(bus.point) if i is 0
-              map.fitBounds(@bounds)
+              @_clearBuses()
+              @_addBuses(map, stop, locations, buses)
+              console.log buses
+              deferred.resolve()
+            .fail -> deferred.reject()
+      .fail -> deferred.reject()
+
+    deferred.promise()
+
+  _clearBuses: ->
+    for marker in @busMarkers
+      marker.setMap(null)
+    @busMarkers = []
+
+  _addBuses: (map, stop, locations, buses) ->
+    sortedBuses = _.sortBy buses, (b) -> b.travelSec
+    for bus, i in sortedBuses
+      offset = locations[i].offset
+      min = bus.travelSec / 60
+      minUntil = min - parseInt(offset) - 1 # be careful, it's SEPTA
+      minUntil = 0 if minUntil < 0
+      if minUntil
+        do (minUntil) =>
+          minToStop = stop.travelSec / 60
+          icon = if minUntil < minToStop + 1
+            'bus_red'
+          else if minUntil < minToStop + 3
+            'bus_yellow'
+          else if minUntil < minToStop + 10
+            'bus_green'
+          else
+            'bus'
+          busMarker = new google.maps.Marker
+            position: bus.point
+            map: map
+            icon: "images/#{icon}.png"
+          @busMarkers.push busMarker
+          busTemplate = require 'templates/bus/bus_tooltip'
+          busInfo = new google.maps.InfoWindow
+            content: busTemplate
+              direction: @direction
+              route: @route
+              minUntil: minUntil.toFixed(2)
+              minToStop: minToStop.toFixed(2)
+          @busInfos.push busInfo
+          do (busMarker) =>
+            google.maps.event.addListener busMarker, 'click', =>
+              @_closeInfoWindows()
+              busInfo.open(map, busMarker)
+          @bounds.extend(bus.point) if i is 0
+    map.fitBounds(@bounds)
 
   _closeInfoWindows: ->
     if @stopInfo? then @stopInfo.close()
@@ -123,9 +159,9 @@ class BusController extends Quips.Controller
       preserveViewport: true
     routeLayer.setMap(map)
 
-  _getNearestStop: ->
+  _findNearestStop: ->
     deferred = Deferred()
-    @mapView.block local: true, message: 'Finding nearest bus stop...'
+    @mapView.block message: 'Finding nearest bus stop...', css: blockCss
     url = "#{@urlRoot}Stops/?req1=#{@route}&callback=?"
     getJSON(url)
       .done (data) =>

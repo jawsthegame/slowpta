@@ -12,6 +12,6 @@
     "backbone":         "0.9.10",
     "haml-coffee":      "1.4.1",
     "hem-haml-coffee":  "0.0.3",
-    "quips":            "0.2.7"
+    "quips":            "0.2.8"
   }
 }
